@@ -27,10 +27,22 @@ const FILES_TO_INGEST = [
     contentType: "statute",
   },
   {
+    filePath: "./downloads/protection-of-personal-and-property-rights-regulations-1988.pdf",
+    sourceName: "Protection of Personal and Property Rights Regulations 1988",
+    sourceUrl: "https://www.legislation.govt.nz/secondary-legislation/pco-drafted/1988/229/en/latest/",
+    contentType: "statute",
+  },
+  {
     filePath: "./downloads/administration-act-1969.pdf",
     sourceName: "Administration Act 1969",
     sourceUrl: "https://www.legislation.govt.nz/act/public/1969/52/en/latest/",
     contentType: "statute",
+  },
+  {
+    filePath: "./downloads/maori-land-court-rules-2011.pdf",
+    sourceName: "Māori Land Court Rules 2011",
+    sourceUrl: "https://legislation.govt.nz/regulation/public/2011/0374/latest/whole.html",
+    contentType: "court_guidance",
   },
 ];
 
