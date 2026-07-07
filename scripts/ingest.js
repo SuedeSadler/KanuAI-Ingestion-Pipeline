@@ -81,10 +81,10 @@ async function upsertSource(name, baseUrl, contentType) {
     .from("sources")
     .select("id")
     .eq("name", name)
-    .maybeSingle();
+    .limit(1);
 
   if (selectError) throw selectError;
-  if (existing) return existing.id;
+  if (existing && existing.length > 0) return existing[0].id;
 
   const { data, error } = await supabase
     .from("sources")
@@ -100,25 +100,27 @@ async function documentUnchanged(sourceUrl, chunkIndex, contentHash) {
   // Join documents -> chunks isn't directly expressible via the JS client,
   // so this checks in two steps: find the document, then check for a chunk
   // at this index with a matching hash.
-  const { data: doc, error: docError } = await supabase
+  // Uses limit(1) rather than maybeSingle() so this stays safe even if
+  // duplicate rows exist from an earlier interrupted run.
+  const { data: docs, error: docError } = await supabase
     .from("documents")
     .select("id, content_hash")
     .eq("source_url", sourceUrl)
     .eq("content_hash", contentHash)
-    .maybeSingle();
+    .limit(1);
 
   if (docError) throw docError;
-  if (!doc) return false;
+  if (!docs || docs.length === 0) return false;
 
-  const { data: chunk, error: chunkError } = await supabase
+  const { data: chunks, error: chunkError } = await supabase
     .from("chunks")
     .select("id")
-    .eq("document_id", doc.id)
+    .eq("document_id", docs[0].id)
     .eq("chunk_index", chunkIndex)
-    .maybeSingle();
+    .limit(1);
 
   if (chunkError) throw chunkError;
-  return !!chunk;
+  return !!(chunks && chunks.length > 0);
 }
 
 async function upsertDocument(sourceId, section) {
