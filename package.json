@@ -4,6 +4,7 @@
   "description": "Ingestion pipeline for KanuAI: parse downloaded legislation, chunk, embed, store in Supabase (pgvector). Deploys to Railway.",
   "type": "module",
   "scripts": {
+    "start": "node scripts/ingest.js",
     "ingest": "node scripts/ingest.js"
   },
   "dependencies": {
