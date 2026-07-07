@@ -1,0 +1,16 @@
+{
+  "name": "kanuai-ingest",
+  "version": "1.0.0",
+  "description": "Ingestion pipeline for KanuAI: parse downloaded legislation, chunk, embed, store in Supabase (pgvector). Deploys to Railway.",
+  "type": "module",
+  "scripts": {
+    "ingest": "node scripts/ingest.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.43.4",
+    "openai": "^4.47.1",
+    "pdf-parse": "^1.1.1",
+    "cheerio": "^1.0.0-rc.12",
+    "dotenv": "^16.4.5"
+  }
+}
