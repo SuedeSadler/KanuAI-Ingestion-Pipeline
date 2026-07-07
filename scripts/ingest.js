@@ -1,7 +1,8 @@
 import "dotenv/config";
+import fs from "fs";
 import { createClient } from "@supabase/supabase-js";
 import OpenAI from "openai";
-import { parseLegislationPdf } from "../parsers/legislationParser.js";
+import { parseLegislationPdf, hashFile } from "../parsers/legislationParser.js";
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -55,7 +56,17 @@ async function main() {
 
 async function ingestFile({ filePath, sourceName, sourceUrl, contentType }) {
   const sourceId = await upsertSource(sourceName, sourceUrl, contentType);
-  const sections = await parseLegislationPdf(filePath, { sourceName, sourceUrl });
+
+  const buffer = fs.readFileSync(filePath);
+  const fileHash = hashFile(buffer);
+
+  const unchanged = await sourceFileUnchanged(sourceId, fileHash);
+  if (unchanged) {
+    console.log(`  Skipping entire file — unchanged since last ingestion`);
+    return;
+  }
+
+  const sections = await parseLegislationPdf(buffer, { sourceName, sourceUrl });
 
   console.log(`  Parsed ${sections.length} sections`);
 
@@ -73,7 +84,20 @@ async function ingestFile({ filePath, sourceName, sourceUrl, contentType }) {
     console.log(`  Embedded: ${section.sectionHeading}`);
   }
 
-  await touchSourceLastFetched(sourceId);
+  await touchSourceLastFetched(sourceId, fileHash);
+}
+
+async function sourceFileUnchanged(sourceId, fileHash) {
+  const { data, error } = await supabase
+    .from("sources")
+    .select("file_hash")
+    .eq("id", sourceId)
+    .limit(1);
+
+  if (error) throw error;
+  if (!data || data.length === 0) return false;
+
+  return data[0].file_hash === fileHash;
 }
 
 async function upsertSource(name, baseUrl, contentType) {
@@ -162,10 +186,10 @@ async function insertChunk(documentId, section, embedding) {
   if (error) throw error;
 }
 
-async function touchSourceLastFetched(sourceId) {
+async function touchSourceLastFetched(sourceId, fileHash) {
   const { error } = await supabase
     .from("sources")
-    .update({ last_fetched_at: new Date().toISOString() })
+    .update({ last_fetched_at: new Date().toISOString(), file_hash: fileHash })
     .eq("id", sourceId);
 
   if (error) throw error;

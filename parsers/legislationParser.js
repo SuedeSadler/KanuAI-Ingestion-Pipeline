@@ -1,12 +1,10 @@
-import fs from "fs";
 import pdf from "pdf-parse";
 import crypto from "crypto";
 
 // Matches NZ legislation section headings, e.g. "108 Nominated successors" or "12. Interpretation"
 const SECTION_HEADING_REGEX = /^(\d{1,3}[A-Z]?)[.\s]+([A-Z][^\n]{3,100})$/gm;
 
-export async function parseLegislationPdf(filePath, { sourceName, sourceUrl }) {
-  const buffer = fs.readFileSync(filePath);
+export async function parseLegislationPdf(buffer, { sourceName, sourceUrl }) {
   const { text } = await pdf(buffer);
 
   const sections = splitIntoSections(text);
@@ -19,6 +17,10 @@ export async function parseLegislationPdf(filePath, { sourceName, sourceUrl }) {
     contentHash: hashContent(section.body),
     chunkIndex: index,
   }));
+}
+
+export function hashFile(buffer) {
+  return crypto.createHash("sha256").update(buffer).digest("hex");
 }
 
 function splitIntoSections(rawText) {
