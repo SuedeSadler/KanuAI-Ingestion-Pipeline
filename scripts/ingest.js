@@ -3,47 +3,63 @@ import fs from "fs";
 import { createClient } from "@supabase/supabase-js";
 import OpenAI from "openai";
 import { parseLegislationPdf, hashFile } from "../parsers/legislationParser.js";
+import { parseGlossaryMarkdown } from "../parsers/glossaryParser.js";
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// Add one entry per downloaded Act you want to ingest
+// Add one entry per downloaded Act (or other source) you want to ingest.
+// `parser` picks which parsing strategy applies: "legislation" for PDF Acts
+// (section-based splitting), "glossary" for markdown term/definition content.
 const FILES_TO_INGEST = [
   {
     filePath: "./downloads/te-ture-whenua-maori-act-1993.pdf",
     sourceName: "Te Ture Whenua Māori Act 1993",
     sourceUrl: "https://www.legislation.govt.nz/act/public/1993/0004/latest/whole.html",
     contentType: "statute",
+    parser: "legislation",
   },
   {
     filePath: "./downloads/wills-act-2007.pdf",
     sourceName: "Wills Act 2007",
     sourceUrl: "https://www.legislation.govt.nz/act/public/2007/0036/latest/whole.html",
     contentType: "statute",
+    parser: "legislation",
   },
   {
     filePath: "./downloads/protection-of-personal-and-property-rights-act-1988.pdf",
     sourceName: "Protection of Personal and Property Rights Act 1988",
     sourceUrl: "https://www.legislation.govt.nz/act/public/1988/0004/latest/whole.html",
     contentType: "statute",
+    parser: "legislation",
   },
   {
     filePath: "./downloads/protection-of-personal-and-property-rights-regulations-1988.pdf",
     sourceName: "Protection of Personal and Property Rights Regulations 1988",
     sourceUrl: "https://www.legislation.govt.nz/secondary-legislation/pco-drafted/1988/229/en/latest/",
     contentType: "statute",
+    parser: "legislation",
   },
   {
     filePath: "./downloads/administration-act-1969.pdf",
     sourceName: "Administration Act 1969",
     sourceUrl: "https://www.legislation.govt.nz/act/public/1969/52/en/latest/",
     contentType: "statute",
+    parser: "legislation",
   },
   {
     filePath: "./downloads/maori-land-court-rules-2011.pdf",
     sourceName: "Māori Land Court Rules 2011",
     sourceUrl: "https://legislation.govt.nz/regulation/public/2011/0374/latest/whole.html",
     contentType: "court_guidance",
+    parser: "legislation",
+  },
+  {
+    filePath: "./downloads/kanu-glossary.md",
+    sourceName: "Kanu Glossary — Legal Terms Explained",
+    sourceUrl: "https://app.notion.com/p/Glossary-Legal-Terms-Explained-3c904fe98ee543a2a42814ec92bceffb",
+    contentType: "plain_language",
+    parser: "glossary",
   },
 ];
 
@@ -54,7 +70,7 @@ async function main() {
   }
 }
 
-async function ingestFile({ filePath, sourceName, sourceUrl, contentType }) {
+async function ingestFile({ filePath, sourceName, sourceUrl, contentType, parser }) {
   const sourceId = await upsertSource(sourceName, sourceUrl, contentType);
 
   const buffer = fs.readFileSync(filePath);
@@ -66,7 +82,10 @@ async function ingestFile({ filePath, sourceName, sourceUrl, contentType }) {
     return;
   }
 
-  const sections = await parseLegislationPdf(buffer, { sourceName, sourceUrl });
+  const sections =
+    parser === "glossary"
+      ? parseGlossaryMarkdown(buffer, { sourceName, sourceUrl })
+      : await parseLegislationPdf(buffer, { sourceName, sourceUrl });
 
   console.log(`  Parsed ${sections.length} sections`);
 
