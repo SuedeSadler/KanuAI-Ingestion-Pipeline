@@ -4,6 +4,8 @@ import { createClient } from "@supabase/supabase-js";
 import OpenAI from "openai";
 import { parseLegislationPdf, hashFile } from "../parsers/legislationParser.js";
 import { parseGlossaryMarkdown } from "../parsers/glossaryParser.js";
+import { parseCuratedContent } from "../parsers/curatedContentParser.js";
+import { extractText } from "../parsers/extractText.js";
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -61,6 +63,23 @@ const FILES_TO_INGEST = [
     contentType: "plain_language",
     parser: "glossary",
   },
+
+  // ---------------------------------------------------------------------
+  // PLACEHOLDER -- Stacey's curated wananga-based educational pages.
+  // Once she sends the actual file, save it into ./downloads/ as-is --
+  // supported formats: .pdf, .docx, .md, .txt, .html (NOT old-format .doc --
+  // re-save that as .docx or PDF first). Then uncomment and fill in below.
+  // For best chunking, PDF/Word files that use real heading styles (or
+  // markdown files using ## / ### per topic) will split much more
+  // meaningfully than a single wall of unstructured text.
+  // ---------------------------------------------------------------------
+  // {
+  //   filePath: "./downloads/stacey-curated-content.docx", // or .pdf, .md, .txt, .html
+  //   sourceName: "Kanu Curated Guidance",
+  //   sourceUrl: "<link to the source doc, if any>",
+  //   contentType: "curated_education",
+  //   parser: "curated",
+  // },
 ];
 
 async function main() {
@@ -82,10 +101,15 @@ async function ingestFile({ filePath, sourceName, sourceUrl, contentType, parser
     return;
   }
 
-  const sections =
-    parser === "glossary"
-      ? parseGlossaryMarkdown(buffer, { sourceName, sourceUrl })
-      : await parseLegislationPdf(buffer, { sourceName, sourceUrl });
+  let sections;
+  if (parser === "glossary") {
+    sections = parseGlossaryMarkdown(buffer, { sourceName, sourceUrl });
+  } else if (parser === "curated") {
+    const extractedText = await extractText(buffer, filePath);
+    sections = parseCuratedContent(extractedText, { sourceName, sourceUrl });
+  } else {
+    sections = await parseLegislationPdf(buffer, { sourceName, sourceUrl });
+  }
 
   console.log(`  Parsed ${sections.length} sections`);
 
